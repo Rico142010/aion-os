@@ -4,10 +4,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db, get_all_projects, get_all_tasks, get_project_by_id
+from app.core.database import get_all_projects, get_all_tasks, get_db, get_project_by_id
 from app.core.security import get_current_user
 from app.models import Project, Task, User
 
@@ -57,7 +56,7 @@ async def dashboard_overview(
                 "name": project.name,
                 "description": project.description,
                 "status": project.status,
-                "owner": current_user.email,
+                "owner": project.owner_user.email,
             }
             for project in projects
         ],

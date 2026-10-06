@@ -1,148 +1,100 @@
-const state = {
-  token: localStorage.getItem('aion-token') || '',
-  user: null,
-  overview: null,
-};
-
-const authShell = document.getElementById('auth-shell');
-const appShell = document.getElementById('app-shell');
-const loginForm = document.getElementById('login-form');
-const loginMessage = document.getElementById('login-message');
-const logoutButton = document.getElementById('logout-button');
-
-async function apiFetch(path, options = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
-
-  if (state.token) {
-    headers.Authorization = `Bearer ${state.token}`;
-  }
-
-  const response = await fetch(path, {
-    ...options,
-    headers,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.detail || 'No se pudo completar la solicitud');
-  }
-
-  return data;
-}
-
-async function loginUser(email, password) {
-  loginMessage.textContent = 'Iniciando sesión...';
-  loginMessage.className = 'login-message info';
-
-  const result = await apiFetch('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-
-  state.token = result.token;
-  state.user = result.user;
-  localStorage.setItem('aion-token', state.token);
-
-  loginMessage.textContent = 'Sesión iniciada correctamente';
-  loginMessage.className = 'login-message success';
-
-  await loadDashboard();
-}
-
-async function loadDashboard() {
-  const overview = await apiFetch('/api/dashboard/overview');
-  state.overview = overview;
-
-  document.getElementById('user-name').textContent = overview.user.name;
-  document.getElementById('projects-count').textContent = overview.stats.projects;
-  document.getElementById('tasks-count').textContent = overview.stats.tasks;
-  document.getElementById('completed-count').textContent = overview.stats.completed;
-  document.getElementById('progress-percent').textContent = `${overview.stats.progress}%`;
-
-  const projectList = document.getElementById('project-list');
-  const taskList = document.getElementById('task-list');
-
-  projectList.innerHTML = overview.projects
-    .map(
-      (project) => `
-        <li>
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AION OS | Workspace</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app-shell" class="app-shell hidden">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-logo">A</div>
           <div>
-            <strong>${project.name}</strong>
-            <small>${project.status}</small>
+            <div class="brand-name">AION OS</div>
+            <div class="brand-subtitle">Workspace profesional</div>
           </div>
-          <span>${project.description || 'Sin descripción'}</span>
-        </li>
-      `
-    )
-    .join('');
+        </div>
 
-  taskList.innerHTML = overview.tasks
-    .map(
-      (task) => `
-        <li>
+        <nav class="nav">
+          <button class="nav-item active">Dashboard</button>
+          <button class="nav-item">Proyectos</button>
+          <button class="nav-item">Tareas</button>
+          <button class="nav-item">Operaciones</button>
+        </nav>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
           <div>
-            <strong>${task.title}</strong>
-            <small>${task.status}</small>
+            <p class="eyebrow">Panel de control</p>
+            <h1>Bienvenido, <span id="user-name">Usuario</span></h1>
           </div>
-          <span>${task.description || 'Sin descripción'}</span>
-        </li>
-      `
-    )
-    .join('');
+          <button id="logout-button" class="ghost-button">Cerrar sesión</button>
+        </header>
 
-  authShell.classList.add('hidden');
-  appShell.classList.remove('hidden');
-}
+        <section class="stats-grid">
+          <article class="stat-card">
+            <span>Proyectos</span>
+            <strong id="projects-count">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>Tareas</span>
+            <strong id="tasks-count">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>Completadas</span>
+            <strong id="completed-count">0</strong>
+          </article>
+          <article class="stat-card accent">
+            <span>Progreso</span>
+            <strong id="progress-percent">0%</strong>
+          </article>
+        </section>
 
-async function bootstrap() {
-  if (!state.token) {
-    authShell.classList.remove('hidden');
-    appShell.classList.add('hidden');
-    return;
-  }
+        <section class="panel-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Proyectos</h2>
+            </div>
+            <ul id="project-list" class="list"></ul>
+          </div>
 
-  try {
-    const user = await apiFetch('/api/auth/me');
-    state.user = user;
-    await loadDashboard();
-  } catch (error) {
-    localStorage.removeItem('aion-token');
-    state.token = '';
-    authShell.classList.remove('hidden');
-    appShell.classList.add('hidden');
-    loginMessage.textContent = 'La sesión expiró. Vuelve a iniciar sesión.';
-    loginMessage.className = 'login-message warning';
-  }
-}
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Tareas</h2>
+            </div>
+            <ul id="task-list" class="list"></ul>
+          </div>
+        </section>
+      </main>
+    </div>
 
-loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
+    <div id="auth-shell" class="auth-shell">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="brand-logo large">A</div>
+          <h2>AION OS</h2>
+          <p>Acceso al workspace profesional</p>
+        </div>
 
-  const email = document.getElementById('email-input').value.trim();
-  const password = document.getElementById('password-input').value.trim();
+        <form id="login-form" class="login-form">
+          <label>
+            <span>Email</span>
+            <input id="email-input" type="email" value="admin@aion.io" required />
+          </label>
+          <label>
+            <span>Contraseña</span>
+            <input id="password-input" type="password" value="admin123" required />
+          </label>
+          <button type="submit" class="primary-button">Iniciar sesión</button>
+        </form>
 
-  try {
-    await loginUser(email, password);
-  } catch (error) {
-    loginMessage.textContent = error.message;
-    loginMessage.className = 'login-message error';
-  }
-});
+        <div id="login-message" class="login-message"></div>
+      </div>
+    </div>
 
-logoutButton.addEventListener('click', () => {
-  localStorage.removeItem('aion-token');
-  state.token = '';
-  state.user = null;
-  state.overview = null;
-
-  authShell.classList.remove('hidden');
-  appShell.classList.add('hidden');
-  loginMessage.textContent = 'Sesión cerrada';
-  loginMessage.className = 'login-message info';
-});
-
-bootstrap();
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,56 +1,64 @@
-from __future__ import annotations
+from fastapi import APIRouter
+import psycopg2
+import redis
 
-from datetime import datetime
+from app.core.config import settings
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-
-
-class Base(DeclarativeBase):
-    pass
+router = APIRouter(tags=["health"])
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(150), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    password: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    projects: Mapped[list["Project"]] = relationship(back_populates="owner_user")
-    tasks: Mapped[list["Task"]] = relationship(back_populates="assignee_user")
-
-
-class Project(Base):
-    __tablename__ = "projects"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(150), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text(), default="")
-    status: Mapped[str] = mapped_column(String(50), default="planning", nullable=False)
-    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    owner_user: Mapped[User] = relationship(back_populates="projects")
-    tasks: Mapped[list["Task"]] = relationship(back_populates="project")
+def _check_database() -> dict:
+    try:
+        conn = psycopg2.connect(
+            dbname=settings.postgres_db,
+            user=settings.postgres_user,
+            password=settings.postgres_password,
+            host=settings.postgres_host,
+            port=settings.postgres_port,
+            connect_timeout=3,
+        )
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        conn.close()
+        return {"ok": True, "host": settings.postgres_host, "port": settings.postgres_port, "database": settings.postgres_db}
+    except Exception as exc:  # pragma: no cover
+        return {"ok": False, "host": settings.postgres_host, "port": settings.postgres_port, "database": settings.postgres_db, "error": str(exc)}
 
 
-class Task(Base):
-    __tablename__ = "tasks"
+def _check_redis() -> dict:
+    client = redis.Redis(
+        host=settings.redis_host,
+        port=settings.redis_port,
+        decode_responses=True,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+    )
+    try:
+        client.ping()
+        return {"ok": True, "host": settings.redis_host, "port": settings.redis_port}
+    except Exception as exc:  # pragma: no cover
+        return {"ok": False, "host": settings.redis_host, "port": settings.redis_port, "error": str(exc)}
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text(), default="")
-    status: Mapped[str] = mapped_column(String(50), default="todo", nullable=False)
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    assignee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    project: Mapped[Project] = relationship(back_populates="tasks")
-    assignee_user: Mapped[User] = relationship(back_populates="tasks")
+@router.get("/health")
+async def health_check() -> dict:
+    db_status = _check_database()
+    redis_status = _check_redis()
+    state = "ok" if db_status["ok"] and redis_status["ok"] else "degraded"
+    return {
+        "status": state,
+        "app": settings.app_name,
+        "env": settings.app_env,
+        "database": db_status,
+        "redis": redis_status,
+    }
+
+
+@router.get("/status")
+async def status_check() -> dict:
+    return {
+        "service": settings.app_name,
+        "status": "ready",
+        "environment": settings.app_env,
+    }

@@ -1,31 +1,46 @@
-from fastapi import APIRouter
+from __future__ import annotations
+
+from collections.abc import Generator
+
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
-from app.core.database import check_database, check_redis
+from app.core.security import seed_default_data
+from app.models import Base, Project, Task, User
 
-router = APIRouter(tags=["health"])
-
-
-@router.get("/health")
-async def health_check() -> dict:
-    db_status = check_database()
-    redis_status = check_redis()
-
-    overall_status = "ok" if db_status["ok"] and redis_status["ok"] else "degraded"
-
-    return {
-        "status": overall_status,
-        "app": settings.app_name,
-        "env": settings.app_env,
-        "database": db_status,
-        "redis": redis_status,
-    }
+engine = create_engine(settings.database_url, pool_pre_ping=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-@router.get("/status")
-async def status_check() -> dict:
-    return {
-        "service": settings.app_name,
-        "status": "ready",
-        "environment": settings.app_env,
-    }
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def init_db() -> None:
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_default_data(db)
+    finally:
+        db.close()
+
+
+def get_user_by_email(db: Session, email: str) -> User | None:
+    return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+
+
+def get_project_by_id(db: Session, project_id: str) -> Project | None:
+    return db.execute(select(Project).where(Project.public_id == project_id)).scalar_one_or_none()
+
+
+def get_all_projects(db: Session) -> list[Project]:
+    return db.execute(select(Project)).scalars().all()
+
+
+def get_all_tasks(db: Session) -> list[Task]:
+    return db.execute(select(Task)).scalars().all()

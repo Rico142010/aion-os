@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db, get_user_by_email
@@ -35,11 +34,10 @@ async def login(payload: LoginPayload, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-async def me(current_user: object = Depends(get_current_user)):
-    user = current_user
+async def me(current_user=Depends(get_current_user)):
     return {
-        "id": user.public_id,
-        "name": user.name,
-        "email": user.email,
-        "role": user.role,
+        "id": current_user.public_id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "role": current_user.role,
     }
