@@ -1,43 +1,61 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import bcrypt
+import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db, get_user_by_email
-from app.core.security import create_access_token, get_current_user
+from app.core.config import settings
+from app.core.database import get_db
+from app.models import User
 
-router = APIRouter(tags=["auth"])
-
-
-class LoginPayload(BaseModel):
-    email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=4)
+security = HTTPBearer(auto_error=False)
 
 
-@router.post("/login")
-async def login(payload: LoginPayload, db: Session = Depends(get_db)):
-    user = get_user_by_email(db, payload.email)
-    if not user or user.password != payload.password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-    token = create_access_token(user.email)
-    return {
-        "token": token,
-        "user": {
-            "id": user.public_id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role,
-        },
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
+
+
+def create_access_token(subject: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": subject,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=settings.jwt_expiration_minutes)).timestamp()),
     }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-@router.get("/me")
-async def me(current_user=Depends(get_current_user)):
-    return {
-        "id": current_user.public_id,
-        "name": current_user.name,
-        "email": current_user.email,
-        "role": current_user.role,
-    }
+def decode_access_token(token: str) -> dict[str, Any]:
+    try:
+        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado") from exc
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere autenticación")
+
+    payload = decode_access_token(credentials.credentials)
+    email = payload.get("sub")
+    if not email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no encontrado")
+
+    return user

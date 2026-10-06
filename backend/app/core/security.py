@@ -1,67 +1,36 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from collections.abc import Generator
 
-import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
-from app.core.database import get_db
-from app.models import User
+from app.core.security import hash_password
+from app.models import Base, Project, Task, User
 
-security = HTTPBearer(auto_error=False)
-
-
-def create_access_token(subject: str) -> str:
-    now = datetime.now(timezone.utc)
-    payload = {
-        "sub": subject,
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=settings.jwt_expiration_minutes)).timestamp()),
-    }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+engine = create_engine(settings.database_url, pool_pre_ping=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def decode_access_token(token: str) -> dict[str, Any]:
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-    except jwt.PyJWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado") from exc
-
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    if not credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere autenticación")
-
-    payload = decode_access_token(credentials.credentials)
-    email = payload.get("sub")
-    if not email:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
-
-    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no encontrado")
-
-    return user
+        yield db
+    finally:
+        db.close()
 
 
 def seed_default_data(db: Session) -> None:
-    existing = db.execute(select(User).where(User.email == settings.default_admin_email)).scalar_one_or_none()
-    if existing:
+    existing_admin = db.execute(select(User).where(User.email == settings.default_admin_email)).scalar_one_or_none()
+    if existing_admin:
         return
 
     admin = User(
         public_id="u-001",
         name="Administrador",
         email=settings.default_admin_email,
-        password=settings.default_admin_password,
+        password=hash_password(settings.default_admin_password),
         role="admin",
     )
     db.add(admin)
@@ -113,3 +82,28 @@ def seed_default_data(db: Session) -> None:
         ]
     )
     db.commit()
+
+
+def init_db() -> None:
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_default_data(db)
+    finally:
+        db.close()
+
+
+def get_user_by_email(db: Session, email: str) -> User | None:
+    return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+
+
+def get_project_by_id(db: Session, project_id: str) -> Project | None:
+    return db.execute(select(Project).where(Project.public_id == project_id)).scalar_one_or_none()
+
+
+def get_all_projects(db: Session) -> list[Project]:
+    return db.execute(select(Project)).scalars().all()
+
+
+def get_all_tasks(db: Session) -> list[Task]:
+    return db.execute(select(Task)).scalars().all()

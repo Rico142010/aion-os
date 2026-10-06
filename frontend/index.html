@@ -1,30 +1,45 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+
+from app.api.routes import auth_router, dashboard_router, health_router
+from app.core.database import init_db
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+FRONTEND_DIR = BASE_DIR / "frontend"
+
+app = FastAPI(
+    title="AION OS",
+    version="1.4.0",
+    description="AION OS workspace with PostgreSQL persistence and secure access",
+)
+
+app.include_router(health_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
+app.include_router(dashboard_router, prefix="/api")
 
 
-class Settings(BaseSettings):
-    app_name: str = "AION OS"
-    app_env: str = "development"
-    api_prefix: str = "/api"
-
-    postgres_db: str = "aion"
-    postgres_user: str = "aion"
-    postgres_password: str = "aion"
-    postgres_host: str = "localhost"
-    postgres_port: int = 5432
-    database_url: str = "postgresql+psycopg2://aion:aion@localhost:5432/aion"
-
-    redis_host: str = "localhost"
-    redis_port: int = 6379
-
-    jwt_secret: str = "aion-super-secret-key-change-me"
-    jwt_algorithm: str = "HS256"
-    jwt_expiration_minutes: int = 60 * 24
-
-    openai_api_key: str = ""
-    default_admin_email: str = "admin@aion.io"
-    default_admin_password: str = "admin123"
-
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+@app.on_event("startup")
+async def startup_event() -> None:
+    init_db()
 
 
-settings = Settings()
+@app.get("/")
+async def root() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/styles.css")
+async def styles() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "styles.css")
+
+
+@app.get("/app.js")
+async def app_js() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "app.js")
+
+
+@app.get("/health")
+async def health() -> dict:
+    return {"status": "ok", "app": "AION OS", "environment": "development"}

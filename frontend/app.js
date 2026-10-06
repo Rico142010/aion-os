@@ -58,7 +58,29 @@ select {
 
 .auth-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+}
+
+.auth-toggle-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.tab-button {
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  background: rgba(103, 232, 249, 0.12);
+  border-color: rgba(103, 232, 249, 0.28);
+  color: var(--primary);
 }
 
 .brand-logo {
@@ -149,7 +171,8 @@ select {
 }
 
 .primary-button:hover,
-.ghost-button:hover {
+.ghost-button:hover,
+.tab-button:hover {
   transform: translateY(-1px);
 }
 

@@ -92,6 +92,11 @@
           <p>Acceso al workspace profesional</p>
         </div>
 
+        <div class="auth-toggle-row">
+          <button type="button" id="show-login-tab" class="tab-button active">Login</button>
+          <button type="button" id="show-register-tab" class="tab-button">Registro</button>
+        </div>
+
         <form id="login-form" class="login-form">
           <label>
             <span>Email</span>
@@ -102,6 +107,22 @@
             <input id="password-input" type="password" value="admin123" required />
           </label>
           <button type="submit" class="primary-button">Iniciar sesión</button>
+        </form>
+
+        <form id="register-form" class="login-form hidden">
+          <label>
+            <span>Nombre</span>
+            <input id="register-name" type="text" placeholder="Tu nombre" required />
+          </label>
+          <label>
+            <span>Email</span>
+            <input id="register-email" type="email" placeholder="usuario@ejemplo.com" required />
+          </label>
+          <label>
+            <span>Contraseña</span>
+            <input id="register-password" type="password" placeholder="Mínimo 6 caracteres" required />
+          </label>
+          <button type="submit" class="primary-button">Crear cuenta</button>
         </form>
 
         <div id="login-message" class="login-message"></div>
