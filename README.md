@@ -8,11 +8,14 @@ const state = {
 const authShell = document.getElementById('auth-shell');
 const appShell = document.getElementById('app-shell');
 const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
 const loginMessage = document.getElementById('login-message');
 const logoutButton = document.getElementById('logout-button');
 const projectForm = document.getElementById('project-form');
 const taskForm = document.getElementById('task-form');
 const taskProjectSelect = document.getElementById('task-project-id');
+const showLoginTab = document.getElementById('show-login-tab');
+const showRegisterTab = document.getElementById('show-register-tab');
 
 async function apiFetch(path, options = {}) {
   const headers = {
@@ -30,12 +33,19 @@ async function apiFetch(path, options = {}) {
   });
 
   const data = await response.json().catch(() => ({}));
-
   if (!response.ok) {
     throw new Error(data.detail || 'No se pudo completar la solicitud');
   }
 
   return data;
+}
+
+function setAuthTab(mode) {
+  const isLogin = mode === 'login';
+  loginForm.classList.toggle('hidden', !isLogin);
+  registerForm.classList.toggle('hidden', isLogin);
+  showLoginTab.classList.toggle('active', isLogin);
+  showRegisterTab.classList.toggle('active', !isLogin);
 }
 
 async function loginUser(email, password) {
@@ -53,7 +63,24 @@ async function loginUser(email, password) {
 
   loginMessage.textContent = 'Sesión iniciada correctamente';
   loginMessage.className = 'login-message success';
+  await loadDashboard();
+}
 
+async function registerUser(name, email, password) {
+  loginMessage.textContent = 'Creando cuenta...';
+  loginMessage.className = 'login-message info';
+
+  const result = await apiFetch('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password }),
+  });
+
+  state.token = result.token;
+  state.user = result.user;
+  localStorage.setItem('aion-token', state.token);
+
+  loginMessage.textContent = 'Cuenta creada correctamente';
+  loginMessage.className = 'login-message success';
   await loadDashboard();
 }
 
@@ -112,7 +139,6 @@ async function loadDashboard() {
   document.getElementById('progress-percent').textContent = `${overview.stats.progress}%`;
 
   renderLists();
-
   authShell.classList.add('hidden');
   appShell.classList.remove('hidden');
 }
@@ -176,7 +202,6 @@ async function bootstrap() {
 
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-
   const email = document.getElementById('email-input').value.trim();
   const password = document.getElementById('password-input').value.trim();
 
@@ -188,8 +213,24 @@ loginForm.addEventListener('submit', async (event) => {
   }
 });
 
+registerForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const name = document.getElementById('register-name').value.trim();
+  const email = document.getElementById('register-email').value.trim();
+  const password = document.getElementById('register-password').value.trim();
+
+  try {
+    await registerUser(name, email, password);
+  } catch (error) {
+    loginMessage.textContent = error.message;
+    loginMessage.className = 'login-message error';
+  }
+});
+
 projectForm.addEventListener('submit', createProject);
 taskForm.addEventListener('submit', createTask);
+showLoginTab.addEventListener('click', () => setAuthTab('login'));
+showRegisterTab.addEventListener('click', () => setAuthTab('register'));
 
 logoutButton.addEventListener('click', () => {
   localStorage.removeItem('aion-token');
@@ -204,4 +245,5 @@ logoutButton.addEventListener('click', () => {
   loginMessage.className = 'login-message info';
 });
 
+setAuthTab('login');
 bootstrap();
