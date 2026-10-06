@@ -1,196 +1,97 @@
 # AION OS
 
-Artificial Intelligence Operating Network
+Artificial Intelligence Operating Network.
 
-Version: 0.0.1
+AION OS is a lightweight project foundation designed to run a backend API and a simple web interface, with PostgreSQL and Redis pre-integrated for future AI, automation and orchestration features.
 
-Status:
-🚧 Under Development
+## Features
 
-Founder:
-Eddy Antonio Peña Lebrón
-.gitignore
-LICENSE
-.env.example
-APP_NAME=AION OS
+- FastAPI backend with health endpoints
+- Simple web dashboard served by FastAPI
+- PostgreSQL database ready for future models and storage
+- Redis support ready for caching and queues
+- Docker Compose orchestration for local development
+- Environment-based configuration
 
-APP_ENV=development
+## Tech stack
 
-POSTGRES_DB=aion
-
-POSTGRES_USER=aion
-
-POSTGRES_PASSWORD=changeme
-
-REDIS_HOST=redis
-
-REDIS_PORT=6379
-
-JWT_SECRET=CHANGE_ME
-
-OPENAI_API_KEY=
-docker-compose.yml
-docs/
-architecture.md
-coding-standards.md
-api.md
-database.md
-deployment.md
-security.md
-roadmap.md
-docker compose up
-docker/
-apps/api/
-apps/studio/
-packages/database/
-packages/kernel/
-AION
-
-apps/
-
-packages/
-
-services/
-
-configs/
-
-docs/
-
-scripts/
-configs/
-requirements.txt
-uv
-Browser
-
-↓
-
-Gateway
-
-↓
-
-FastAPI
-
-↓
-
-Kernel
-
-↓
-
-Services
-
-↓
-
-Database
-Sprint
-
-↓
-
-Planning
-
-↓
-
-Development
-
-↓
-
-Testing
-
-↓
-
-Review
-
-↓
-
-Release
-50 archivos
-aion-os/
-│
-├── docker-compose.yml
-version: "3.9"
-
-name: aion
-
-services:
-
-  postgres:
-    image: postgres:17
-    container_name: aion-postgres
-
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: aion
-      POSTGRES_USER: aion
-      POSTGRES_PASSWORD: aion
-
-    ports:
-      - "5432:5432"
-
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-    healthcheck:
-      test: ["CMD-SHELL","pg_isready -U aion"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:8
-
-    container_name: aion-redis
-
-    restart: unless-stopped
-
-    ports:
-      - "6379:6379"
-
-    volumes:
-      - redis_data:/data
-
-volumes:
-
-  postgres_data:
-
-  redis_data:
-APP_NAME=AION OS
-
-APP_ENV=development
-
-POSTGRES_DB=aion
-
-POSTGRES_USER=aion
-
-POSTGRES_PASSWORD=aion
-
-POSTGRES_HOST=postgres
-
-POSTGRES_PORT=5432
-
-REDIS_HOST=redis
-
-REDIS_PORT=6379
-
-JWT_SECRET=CHANGE_ME
-
-OPENAI_API_KEY=
-# AION OS
-
-Artificial Intelligence Operating Network
-
-Version 0.0.1-alpha
-
-Status
-
-🚧 Development
-
-## Stack
-
+- Python 3.12
 - FastAPI
-- Next.js
-- PostgreSQL
-- Redis
-- Docker
-- docker compose up -d
-- docker ps
-- 
+- PostgreSQL 17
+- Redis 8
+- Docker Compose
+
+## Quick start
+
+1. Copy the environment file:
+
+   cp .env.example .env
+
+2. Start the services:
+
+   docker compose up --build
+
+3. Open the application:
+
+   http://localhost:8000
+
+4. API health check:
+
+   http://localhost:8000/api/health
+
+## Services
+
+- API: http://localhost:8000
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
+
+## Useful commands
+
+- Stop services:
+
+  docker compose down
+
+- Stop and remove volumes:
+
+  docker compose down -v
+
+- View logs:
+
+  docker compose logs -f api
+
+## Structure
+
+```text
+.
+├── .env.example
+├── .gitignore
+├── README.md
+├── docker-compose.yml
+├── backend/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── app/
+│       ├── __init__.py
+│       ├── main.py
+│       ├── api/
+│       │   ├── __init__.py
+│       │   └── routes/
+│       │       ├── __init__.py
+│       │       └── health.py
+│       └── core/
+│           ├── __init__.py
+│           └── config.py
+├── frontend/
+│   ├── app.js
+│   ├── index.html
+│   └── styles.css
+└──
+```
+
+## Environment variables
+
+The project reads configuration from `.env` with defaults defined in `.env.example`.
+
+## Notes
+
+This is the foundation for an operating network and AI orchestration platform. The current version provides a working baseline that is ready for new modules, APIs, automation flows, and more advanced features.

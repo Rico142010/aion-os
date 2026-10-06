@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: aion-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aion}
+      POSTGRES_USER: ${POSTGRES_USER:-aion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aion}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    container_name: aion-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no"]
+
+  api:
+    build:
+      context: ./backend
+    container_name: aion-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      APP_NAME: ${APP_NAME:-AION OS}
+      APP_ENV: ${APP_ENV:-development}
+      POSTGRES_DB: ${POSTGRES_DB:-aion}
+      POSTGRES_USER: ${POSTGRES_USER:-aion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aion}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:

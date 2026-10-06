@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# IDE / editors
+.vscode/
+.idea/
+.DS_Store
+
+# Docker / local data
+postgres_data/
+redis_data/
+
+# Node
+node_modules/
+.next/
+out/
