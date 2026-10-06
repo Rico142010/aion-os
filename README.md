@@ -2,16 +2,16 @@
 
 Artificial Intelligence Operating Network.
 
-AION OS is a lightweight project foundation designed to run a backend API and a simple web interface, with PostgreSQL and Redis pre-integrated for future AI, automation and orchestration features.
+AION OS is a lightweight operating network foundation designed for AI services, automation, orchestration, and modular application workflows.
 
 ## Features
 
 - FastAPI backend with health endpoints
-- Simple web dashboard served by FastAPI
-- PostgreSQL database ready for future models and storage
-- Redis support ready for caching and queues
+- Dashboard served from the frontend directory
+- PostgreSQL health checking and Redis status validation
 - Docker Compose orchestration for local development
 - Environment-based configuration
+- Foundation ready for future AI agents, services and workflows
 
 ## Tech stack
 
@@ -31,11 +31,11 @@ AION OS is a lightweight project foundation designed to run a backend API and a 
 
    docker compose up --build
 
-3. Open the application:
+3. Open the app:
 
    http://localhost:8000
 
-4. API health check:
+4. Check API health:
 
    http://localhost:8000/api/health
 
@@ -47,7 +47,7 @@ AION OS is a lightweight project foundation designed to run a backend API and a 
 
 ## Useful commands
 
-- Stop services:
+- Stop the stack:
 
   docker compose down
 
@@ -59,7 +59,7 @@ AION OS is a lightweight project foundation designed to run a backend API and a 
 
   docker compose logs -f api
 
-## Structure
+## Project structure
 
 ```text
 .
@@ -72,15 +72,16 @@ AION OS is a lightweight project foundation designed to run a backend API and a 
 │   ├── requirements.txt
 │   └── app/
 │       ├── __init__.py
-│       ├── main.py
 │       ├── api/
 │       │   ├── __init__.py
 │       │   └── routes/
 │       │       ├── __init__.py
 │       │       └── health.py
-│       └── core/
-│           ├── __init__.py
-│           └── config.py
+│       ├── core/
+│       │   ├── __init__.py
+│       │   ├── config.py
+│       │   └── database.py
+│       └── main.py
 ├── frontend/
 │   ├── app.js
 │   ├── index.html
@@ -92,6 +93,6 @@ AION OS is a lightweight project foundation designed to run a backend API and a 
 
 The project reads configuration from `.env` with defaults defined in `.env.example`.
 
-## Notes
+## Current status
 
-This is the foundation for an operating network and AI orchestration platform. The current version provides a working baseline that is ready for new modules, APIs, automation flows, and more advanced features.
+This version is a working foundation: the API is up, the frontend loads, and system health checks can validate PostgreSQL and Redis availability.

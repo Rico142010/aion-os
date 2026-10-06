@@ -1,27 +1,31 @@
-async function loadHealth() {
-  const statusEl = document.getElementById('status');
-  const apiStatus = document.getElementById('api-status');
-  const envStatus = document.getElementById('env-status');
+from fastapi import APIRouter
 
-  try {
-    const response = await fetch('/api/health');
-    const data = await response.json();
+from app.core.config import settings
+from app.core.database import check_database, check_redis
 
-    if (!response.ok) {
-      throw new Error(data.detail || 'Error de conexión');
+router = APIRouter(tags=["health"])
+
+
+@router.get("/health")
+async def health_check() -> dict:
+    db_status = check_database()
+    redis_status = check_redis()
+
+    overall_status = "ok" if db_status["ok"] and redis_status["ok"] else "degraded"
+
+    return {
+        "status": overall_status,
+        "app": settings.app_name,
+        "env": settings.app_env,
+        "database": db_status,
+        "redis": redis_status,
     }
 
-    statusEl.textContent = 'Sistema operativo';
-    statusEl.className = 'status-pill success';
-    apiStatus.textContent = 'OK';
-    envStatus.textContent = data.env || 'development';
-  } catch (error) {
-    statusEl.textContent = 'Sin conexión';
-    statusEl.className = 'status-pill loading';
-    apiStatus.textContent = 'ERROR';
-    envStatus.textContent = 'offline';
-    console.error(error);
-  }
-}
 
-loadHealth();
+@router.get("/status")
+async def status_check() -> dict:
+    return {
+        "service": settings.app_name,
+        "status": "ready",
+        "environment": settings.app_env,
+    }

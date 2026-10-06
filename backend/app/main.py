@@ -6,8 +6,8 @@ from fastapi.responses import FileResponse
 from app.api.routes.health import router as health_router
 from app.core.config import settings
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-FRONTEND_DIR = BASE_DIR.parent / "frontend"
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 app = FastAPI(
     title=settings.app_name,
