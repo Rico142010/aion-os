@@ -1,7 +1,19 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-pydantic-settings==2.5.2
-redis==5.1.1
-psycopg2-binary==2.9.9
-python-dotenv==1.0.1
-PyJWT==2.10.1
+# AION OS
+APP_NAME=AION OS
+APP_ENV=development
+API_PREFIX=/api
+
+POSTGRES_DB=aion
+POSTGRES_USER=aion
+POSTGRES_PASSWORD=aion
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+DATABASE_URL=postgresql+psycopg2://aion:aion@localhost:5432/aion
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+JWT_SECRET=aion-super-secret-key-change-me
+OPENAI_API_KEY=
+DEFAULT_ADMIN_EMAIL=admin@aion.io
+DEFAULT_ADMIN_PASSWORD=admin123

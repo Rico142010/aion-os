@@ -1,58 +1,72 @@
-import psycopg2
-import redis
+from __future__ import annotations
+
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models import Project, Task, User
 
 
-def check_database() -> dict:
-    try:
-        connection = psycopg2.connect(
-            dbname=settings.postgres_db,
-            user=settings.postgres_user,
-            password=settings.postgres_password,
-            host=settings.postgres_host,
-            port=settings.postgres_port,
-            connect_timeout=3,
-        )
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-        connection.close()
-        return {
-            "ok": True,
-            "host": settings.postgres_host,
-            "port": settings.postgres_port,
-            "database": settings.postgres_db,
-        }
-    except Exception as exc:  # pragma: no cover - runtime check only
-        return {
-            "ok": False,
-            "host": settings.postgres_host,
-            "port": settings.postgres_port,
-            "database": settings.postgres_db,
-            "error": str(exc),
-        }
+def seed_default_data(db: Session) -> None:
+    existing = db.execute(select(User).where(User.email == settings.default_admin_email)).scalar_one_or_none()
+    if existing:
+        return
 
-
-def check_redis() -> dict:
-    client = redis.Redis(
-        host=settings.redis_host,
-        port=settings.redis_port,
-        decode_responses=True,
-        socket_connect_timeout=2,
-        socket_timeout=2,
+    admin = User(
+        public_id="u-001",
+        name="Administrador",
+        email=settings.default_admin_email,
+        password=settings.default_admin_password,
+        role="admin",
     )
-    try:
-        client.ping()
-        return {
-            "ok": True,
-            "host": settings.redis_host,
-            "port": settings.redis_port,
-        }
-    except Exception as exc:  # pragma: no cover - runtime check only
-        return {
-            "ok": False,
-            "host": settings.redis_host,
-            "port": settings.redis_port,
-            "error": str(exc),
-        }
+    db.add(admin)
+    db.flush()
+
+    project_one = Project(
+        public_id="p-001",
+        name="AION OS Core",
+        description="Plataforma base para IA y automatización.",
+        status="active",
+        owner_id=admin.id,
+    )
+    project_two = Project(
+        public_id="p-002",
+        name="Workspace Studio",
+        description="Panel operativo para usuarios y servicios.",
+        status="planning",
+        owner_id=admin.id,
+    )
+    db.add_all([project_one, project_two])
+    db.flush()
+
+    db.add_all(
+        [
+            Task(
+                public_id="t-001",
+                title="Preparar infraestructura base",
+                description="Definir la arquitectura inicial del sistema.",
+                status="done",
+                project_id=project_one.id,
+                assignee_id=admin.id,
+            ),
+            Task(
+                public_id="t-002",
+                title="Crear autenticación JWT",
+                description="Implementar login seguro para usuarios del backend.",
+                status="in_progress",
+                project_id=project_one.id,
+                assignee_id=admin.id,
+            ),
+            Task(
+                public_id="t-003",
+                title="Diseñar panel profesional",
+                description="Crear tablero con métricas y gestión de tareas.",
+                status="todo",
+                project_id=project_two.id,
+                assignee_id=admin.id,
+            ),
+        ]
+    )
+    db.commit()

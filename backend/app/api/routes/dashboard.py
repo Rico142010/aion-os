@@ -1,88 +1,45 @@
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user
-from app.core.store import projects, tasks
+from app.core.database import get_db, get_user_by_email
+from app.core.security import create_access_token, get_current_user
 
-router = APIRouter(tags=["dashboard"])
-
-
-class ProjectInput(BaseModel):
-    name: str = Field(..., min_length=2)
-    description: str = Field(default="")
-    status: str = Field(default="planning")
+router = APIRouter(tags=["auth"])
 
 
-class TaskInput(BaseModel):
-    title: str = Field(..., min_length=2)
-    description: str = Field(default="")
-    status: str = Field(default="todo")
-    project_id: str = Field(...)
+class LoginPayload(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=4)
 
 
-@router.get("/dashboard/overview")
-async def dashboard_overview(current_user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    total_projects = len(projects)
-    total_tasks = len(tasks)
-    completed_tasks = sum(1 for task in tasks if task["status"] == "done")
-    progress = round((completed_tasks / total_tasks) * 100, 1) if total_tasks else 0
+@router.post("/login")
+async def login(payload: LoginPayload, db: Session = Depends(get_db)):
+    user = get_user_by_email(db, payload.email)
+    if not user or user.password != payload.password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
 
+    token = create_access_token(user.email)
     return {
+        "token": token,
         "user": {
-            "name": current_user["name"],
-            "email": current_user["email"],
-            "role": current_user["role"],
+            "id": user.public_id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
         },
-        "stats": {
-            "projects": total_projects,
-            "tasks": total_tasks,
-            "completed": completed_tasks,
-            "progress": progress,
-        },
-        "projects": projects,
-        "tasks": tasks,
     }
 
 
-@router.get("/projects")
-async def list_projects(current_user: dict = Depends(get_current_user)):
-    return projects
-
-
-@router.post("/projects")
-async def create_project(payload: ProjectInput, current_user: dict = Depends(get_current_user)):
-    project = {
-        "id": f"p-{len(projects) + 1:03d}",
-        "name": payload.name,
-        "description": payload.description,
-        "status": payload.status,
-        "owner": current_user["email"],
+@router.get("/me")
+async def me(current_user: object = Depends(get_current_user)):
+    user = current_user
+    return {
+        "id": user.public_id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
     }
-    projects.append(project)
-    return project
-
-
-@router.get("/tasks")
-async def list_tasks(current_user: dict = Depends(get_current_user)):
-    return tasks
-
-
-@router.post("/tasks")
-async def create_task(payload: TaskInput, current_user: dict = Depends(get_current_user)):
-    if not any(project["id"] == payload.project_id for project in projects):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proyecto no encontrado")
-
-    task = {
-        "id": f"t-{len(tasks) + 1:03d}",
-        "title": payload.title,
-        "description": payload.description,
-        "status": payload.status,
-        "project_id": payload.project_id,
-        "assignee": current_user["email"],
-    }
-    tasks.append(task)
-    return task

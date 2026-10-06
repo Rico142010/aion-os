@@ -1,42 +1,56 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from datetime import datetime
 
-from app.core.security import create_access_token, get_current_user
-from app.core.store import projects, tasks, users
-
-router = APIRouter(tags=["auth"])
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-class LoginPayload(BaseModel):
-    email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=4)
+class Base(DeclarativeBase):
+    pass
 
 
-@router.post("/login")
-async def login(payload: LoginPayload):
-    user = users.get(payload.email)
-    if not user or user["password"] != payload.password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
+class User(Base):
+    __tablename__ = "users"
 
-    token = create_access_token(user["email"])
-    return {
-        "token": token,
-        "user": {
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"],
-            "role": user["role"],
-        },
-    }
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    projects: Mapped[list["Project"]] = relationship(back_populates="owner_user")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="assignee_user")
 
 
-@router.get("/me")
-async def me(current_user: dict = Depends(get_current_user)):
-    return {
-        "id": current_user["id"],
-        "name": current_user["name"],
-        "email": current_user["email"],
-        "role": current_user["role"],
-    }
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text(), default="")
+    status: Mapped[str] = mapped_column(String(50), default="planning", nullable=False)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    owner_user: Mapped[User] = relationship(back_populates="projects")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="project")
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text(), default="")
+    status: Mapped[str] = mapped_column(String(50), default="todo", nullable=False)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    assignee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    project: Mapped[Project] = relationship(back_populates="tasks")
+    assignee_user: Mapped[User] = relationship(back_populates="tasks")

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     postgres_password: str = "aion"
     postgres_host: str = "localhost"
     postgres_port: int = 5432
+    database_url: str = "postgresql+psycopg2://aion:aion@localhost:5432/aion"
 
     redis_host: str = "localhost"
     redis_port: int = 6379
