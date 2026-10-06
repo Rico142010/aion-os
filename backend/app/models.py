@@ -1,46 +1,56 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from datetime import datetime
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
-
-from app.core.config import settings
-from app.core.security import seed_default_data
-from app.models import Base, Project, Task, User
-
-engine = create_engine(settings.database_url, pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+class Base(DeclarativeBase):
+    pass
 
 
-def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        seed_default_data(db)
-    finally:
-        db.close()
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    projects: Mapped[list["Project"]] = relationship(back_populates="owner_user")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="assignee_user")
 
 
-def get_user_by_email(db: Session, email: str) -> User | None:
-    return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text(), default="")
+    status: Mapped[str] = mapped_column(String(50), default="planning", nullable=False)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    owner_user: Mapped[User] = relationship(back_populates="projects")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="project")
 
 
-def get_project_by_id(db: Session, project_id: str) -> Project | None:
-    return db.execute(select(Project).where(Project.public_id == project_id)).scalar_one_or_none()
+class Task(Base):
+    __tablename__ = "tasks"
 
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text(), default="")
+    status: Mapped[str] = mapped_column(String(50), default="todo", nullable=False)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    assignee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-def get_all_projects(db: Session) -> list[Project]:
-    return db.execute(select(Project)).scalars().all()
-
-
-def get_all_tasks(db: Session) -> list[Task]:
-    return db.execute(select(Task)).scalars().all()
+    project: Mapped[Project] = relationship(back_populates="tasks")
+    assignee_user: Mapped[User] = relationship(back_populates="tasks")

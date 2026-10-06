@@ -58,6 +58,11 @@
             <div class="panel-header">
               <h2>Proyectos</h2>
             </div>
+            <form id="project-form" class="crud-form">
+              <input id="project-name" type="text" placeholder="Nombre del proyecto" required />
+              <textarea id="project-description" rows="2" placeholder="Descripción"></textarea>
+              <button type="submit" class="primary-button compact">Crear proyecto</button>
+            </form>
             <ul id="project-list" class="list"></ul>
           </div>
 
@@ -65,6 +70,14 @@
             <div class="panel-header">
               <h2>Tareas</h2>
             </div>
+            <form id="task-form" class="crud-form">
+              <input id="task-title" type="text" placeholder="Título de la tarea" required />
+              <textarea id="task-description" rows="2" placeholder="Descripción"></textarea>
+              <select id="task-project-id" required>
+                <option value="">Selecciona un proyecto</option>
+              </select>
+              <button type="submit" class="primary-button compact">Crear tarea</button>
+            </form>
             <ul id="task-list" class="list"></ul>
           </div>
         </section>

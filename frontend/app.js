@@ -26,7 +26,9 @@ body {
 }
 
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
 }
 
@@ -88,9 +90,10 @@ input {
   color: var(--muted);
 }
 
-.login-form {
+.login-form,
+.crud-form {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .login-form label {
@@ -100,16 +103,22 @@ input {
   font-size: 0.94rem;
 }
 
-.login-form input {
+.login-form input,
+.crud-form input,
+.crud-form textarea,
+.crud-form select {
   background: rgba(17, 29, 42, 0.8);
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--text);
-  padding: 12px 14px;
+  padding: 10px 12px;
   outline: none;
 }
 
-.login-form input:focus {
+.login-form input:focus,
+.crud-form input:focus,
+.crud-form textarea:focus,
+.crud-form select:focus {
   border-color: rgba(103, 232, 249, 0.8);
   box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.15);
 }
@@ -127,6 +136,10 @@ input {
   background: linear-gradient(135deg, var(--primary), var(--primary-strong));
   color: #02141d;
   font-weight: 700;
+}
+
+.primary-button.compact {
+  padding: 9px 12px;
 }
 
 .ghost-button {
@@ -268,7 +281,7 @@ input {
 
 .list {
   list-style: none;
-  margin: 0;
+  margin: 12px 0 0;
   padding: 0;
   display: grid;
   gap: 12px;

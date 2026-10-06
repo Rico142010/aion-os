@@ -1,64 +1,43 @@
-from fastapi import APIRouter
-import psycopg2
-import redis
+from __future__ import annotations
 
-from app.core.config import settings
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-router = APIRouter(tags=["health"])
+from app.core.database import get_db, get_user_by_email
+from app.core.security import create_access_token, get_current_user
 
-
-def _check_database() -> dict:
-    try:
-        conn = psycopg2.connect(
-            dbname=settings.postgres_db,
-            user=settings.postgres_user,
-            password=settings.postgres_password,
-            host=settings.postgres_host,
-            port=settings.postgres_port,
-            connect_timeout=3,
-        )
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-        conn.close()
-        return {"ok": True, "host": settings.postgres_host, "port": settings.postgres_port, "database": settings.postgres_db}
-    except Exception as exc:  # pragma: no cover
-        return {"ok": False, "host": settings.postgres_host, "port": settings.postgres_port, "database": settings.postgres_db, "error": str(exc)}
+router = APIRouter(tags=["auth"])
 
 
-def _check_redis() -> dict:
-    client = redis.Redis(
-        host=settings.redis_host,
-        port=settings.redis_port,
-        decode_responses=True,
-        socket_connect_timeout=2,
-        socket_timeout=2,
-    )
-    try:
-        client.ping()
-        return {"ok": True, "host": settings.redis_host, "port": settings.redis_port}
-    except Exception as exc:  # pragma: no cover
-        return {"ok": False, "host": settings.redis_host, "port": settings.redis_port, "error": str(exc)}
+class LoginPayload(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=4)
 
 
-@router.get("/health")
-async def health_check() -> dict:
-    db_status = _check_database()
-    redis_status = _check_redis()
-    state = "ok" if db_status["ok"] and redis_status["ok"] else "degraded"
+@router.post("/login")
+async def login(payload: LoginPayload, db: Session = Depends(get_db)):
+    user = get_user_by_email(db, payload.email)
+    if not user or user.password != payload.password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
+
+    token = create_access_token(user.email)
     return {
-        "status": state,
-        "app": settings.app_name,
-        "env": settings.app_env,
-        "database": db_status,
-        "redis": redis_status,
+        "token": token,
+        "user": {
+            "id": user.public_id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+        },
     }
 
 
-@router.get("/status")
-async def status_check() -> dict:
+@router.get("/me")
+async def me(current_user=Depends(get_current_user)):
     return {
-        "service": settings.app_name,
-        "status": "ready",
-        "environment": settings.app_env,
+        "id": current_user.public_id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "role": current_user.role,
     }

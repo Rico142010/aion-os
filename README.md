@@ -1,6 +1,8 @@
 const state = {
   token: localStorage.getItem('aion-token') || '',
   user: null,
+  projects: [],
+  tasks: [],
 };
 
 const authShell = document.getElementById('auth-shell');
@@ -8,6 +10,9 @@ const appShell = document.getElementById('app-shell');
 const loginForm = document.getElementById('login-form');
 const loginMessage = document.getElementById('login-message');
 const logoutButton = document.getElementById('logout-button');
+const projectForm = document.getElementById('project-form');
+const taskForm = document.getElementById('task-form');
+const taskProjectSelect = document.getElementById('task-project-id');
 
 async function apiFetch(path, options = {}) {
   const headers = {
@@ -52,19 +57,18 @@ async function loginUser(email, password) {
   await loadDashboard();
 }
 
-async function loadDashboard() {
-  const overview = await apiFetch('/api/dashboard/overview');
+function renderProjectOptions() {
+  taskProjectSelect.innerHTML = '<option value="">Selecciona un proyecto</option>' +
+    state.projects
+      .map((project) => `<option value="${project.id}">${project.name}</option>`)
+      .join('');
+}
 
-  document.getElementById('user-name').textContent = overview.user.name;
-  document.getElementById('projects-count').textContent = overview.stats.projects;
-  document.getElementById('tasks-count').textContent = overview.stats.tasks;
-  document.getElementById('completed-count').textContent = overview.stats.completed;
-  document.getElementById('progress-percent').textContent = `${overview.stats.progress}%`;
-
+function renderLists() {
   const projectList = document.getElementById('project-list');
   const taskList = document.getElementById('task-list');
 
-  projectList.innerHTML = overview.projects
+  projectList.innerHTML = state.projects
     .map(
       (project) => `
         <li>
@@ -78,7 +82,7 @@ async function loadDashboard() {
     )
     .join('');
 
-  taskList.innerHTML = overview.tasks
+  taskList.innerHTML = state.tasks
     .map(
       (task) => `
         <li>
@@ -92,8 +96,61 @@ async function loadDashboard() {
     )
     .join('');
 
+  renderProjectOptions();
+}
+
+async function loadDashboard() {
+  const overview = await apiFetch('/api/dashboard/overview');
+
+  state.projects = overview.projects || [];
+  state.tasks = overview.tasks || [];
+
+  document.getElementById('user-name').textContent = overview.user.name;
+  document.getElementById('projects-count').textContent = overview.stats.projects;
+  document.getElementById('tasks-count').textContent = overview.stats.tasks;
+  document.getElementById('completed-count').textContent = overview.stats.completed;
+  document.getElementById('progress-percent').textContent = `${overview.stats.progress}%`;
+
+  renderLists();
+
   authShell.classList.add('hidden');
   appShell.classList.remove('hidden');
+}
+
+async function createProject(event) {
+  event.preventDefault();
+
+  const name = document.getElementById('project-name').value.trim();
+  const description = document.getElementById('project-description').value.trim();
+  if (!name) return;
+
+  const project = await apiFetch('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify({ name, description, status: 'planning' }),
+  });
+
+  state.projects.push(project);
+  document.getElementById('project-form').reset();
+  renderLists();
+}
+
+async function createTask(event) {
+  event.preventDefault();
+
+  const title = document.getElementById('task-title').value.trim();
+  const description = document.getElementById('task-description').value.trim();
+  const projectId = taskProjectSelect.value;
+
+  if (!title || !projectId) return;
+
+  const task = await apiFetch('/api/tasks', {
+    method: 'POST',
+    body: JSON.stringify({ title, description, status: 'todo', project_id: projectId }),
+  });
+
+  state.tasks.push(task);
+  document.getElementById('task-form').reset();
+  renderLists();
 }
 
 async function bootstrap() {
@@ -131,10 +188,15 @@ loginForm.addEventListener('submit', async (event) => {
   }
 });
 
+projectForm.addEventListener('submit', createProject);
+taskForm.addEventListener('submit', createTask);
+
 logoutButton.addEventListener('click', () => {
   localStorage.removeItem('aion-token');
   state.token = '';
   state.user = null;
+  state.projects = [];
+  state.tasks = [];
 
   authShell.classList.remove('hidden');
   appShell.classList.add('hidden');
