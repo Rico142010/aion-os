@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,8 +17,13 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
 
-    jwt_secret: str = "change-me"
+    jwt_secret: str = "aion-super-secret-key-change-me"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_minutes: int = 60 * 24
+
     openai_api_key: str = ""
+    default_admin_email: str = "admin@aion.io"
+    default_admin_password: str = "admin123"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
