@@ -1,0 +1,2 @@
+# Necesaria para proteger los tokens OAuth de YouTube en SQLite con AES-GCM.
+cryptography>=42,<51
